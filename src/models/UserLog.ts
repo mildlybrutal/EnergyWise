@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface UserLog extends Document {
     _id: string;
-    userId: string;
+    userId: mongoose.Types.ObjectId;
     unitsUsed: number;
     perUnitCost: number;
     totalBill: number;
@@ -10,6 +10,11 @@ export interface UserLog extends Document {
 }
 
 const UserLogSchema: Schema<UserLog> = new Schema({
+    userId:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref:"User",
+        required: [true, "Please provide the user ID"],
+    },
     unitsUsed: {
         type: Number,
         required: [true, "Please provide the units used"],
@@ -26,6 +31,6 @@ const UserLogSchema: Schema<UserLog> = new Schema({
 
 const UserLogModel =
     (mongoose.models.UserLog as mongoose.Model<UserLog>) ||
-    mongoose.model<UserLog>("User", UserLogSchema);
+    mongoose.model<UserLog>("UserLog", UserLogSchema);
 
 export default UserLogModel;
