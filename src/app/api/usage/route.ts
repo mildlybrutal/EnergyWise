@@ -6,6 +6,8 @@ import { Types } from "mongoose";
 import UserModel from "@/models/User";
 import { authClient } from "@/lib/client";
 import OpenAI from "openai";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
@@ -20,9 +22,21 @@ interface AISuggestion {
 
 export async function POST(request: NextRequest) {
     await dbConnect();
+
+    const sessionCookie = request.cookies.get("session_token");
+
+    if (!sessionCookie) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 }
+        );
+    }
+
     try {
-        const { data: session } = await authClient.getSession();
-        if (!session || !session.session?.id) {
+        const session = await auth.api.getSession({
+            headers:await headers(),
+        });
+        if (!session || !session.user?.id) {
             return NextResponse.json(
                 { error: "Unauthorized" },
                 { status: 401 }
@@ -48,6 +62,12 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
 
+        const userLog = {
+            userId: session.user.id,
+            ...body,
+            createdAt: new Date(),
+        }
+
         const inputWithUserId: UserLog = {
             ...body,
             userId: user._id.toString(),
@@ -71,6 +91,22 @@ export async function POST(request: NextRequest) {
             { error: "Unable to process request" },
             { status: 400 }
         );
+    }
+}
+
+export async function GET(request: NextRequest) {
+    await dbConnect();
+    try {
+        const session = await authClient.getSession();
+        if (!session || !session.data?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const userId = session.data?.user.id;
+        const logs = await UserLogModel.find({ userId }).sort({ createdAt: -1 });
+        return NextResponse.json({ logs });
+    } catch (error) {
+        return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
     }
 }
 
